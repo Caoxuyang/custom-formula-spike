@@ -30,11 +30,12 @@ public class DeleteMultiObjects {
         }
 
         String containerName = args[0];
-        String endpoint = "https://yourstorageaccount.blob.core.windows.net";
+
+        // Replace with your actual connection string
+        String connectionString = "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=youraccountkey;EndpointSuffix=core.windows.net";
 
         BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-            .endpoint(endpoint)
-            .credential(new DefaultAzureCredentialBuilder().build())
+            .connectionString(connectionString)
             .buildClient();
 
         deleteContainerBlobs(blobServiceClient, containerName);
