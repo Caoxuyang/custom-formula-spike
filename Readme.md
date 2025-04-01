@@ -21,3 +21,8 @@ Scenario:
 1. Manually intrudce code change based on step 4, assuming the customer has a policy that every object uploaded should be attched with a metadata to indicate the current utc timestamp `Add metadata before uploading the object`. This generate a code commit `B-custom-attach-metadata`
 1. Construct the custom formula again to include code commit `B-custom-attach-metadata` and generate custom formula `A+B-formula-option-{1/2/3}`
 1. Apply the `A+B-formula-option-{1/2/3}` to C to check the finial results.
+
+
+As you can see, two challenges introduced:
+-  `change the storage blob authn from use endpoint + DefaultAzureCredentials -> connectionString` this is a generate code path that three apps will all go through, to init the blob client. This is to test a comflict / priority race condition that the MSFT formula tells LLM to use `endpoint + DefaultAzureCredentials` while custom formula tells LLM to use `connectionString`. 
+- `Add metadata before uploading the object` is another case to test whether custom formula can handle these customer specific operations well.
