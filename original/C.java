@@ -1,13 +1,20 @@
 package com.example.s3;
 
-import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
-import com.azure.storage.blob.options.BlobParallelUploadOptions;
+import com.azure.storage.blob.models.AccessTier;
+import com.azure.storage.blob.models.BlobHttpHeaders;
+import com.azure.storage.blob.models.BlobRequestConditions;
+import com.azure.storage.blob.models.ParallelTransferOptions;
 
 import java.io.File;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,10 +42,10 @@ public class PutObjectMetadata {
         System.out.println("Putting blob " + blobName + " into container " + containerName);
         System.out.println("  in container: " + containerName);
 
-        String endpoint = "https://yourstorageaccount.blob.core.windows.net";
+        // Replace with your actual connection string
+        String connectionString = "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=youraccountkey;EndpointSuffix=core.windows.net";
         BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-            .endpoint(endpoint)
-            .credential(new DefaultAzureCredentialBuilder().build())
+            .connectionString(connectionString)
             .buildClient();
 
         putBlobObject(blobServiceClient, containerName, blobName, filePath);
@@ -57,18 +64,27 @@ public class PutObjectMetadata {
             Map<String, String> metadata = new HashMap<>();
             metadata.put("author", "Mary Doe");
             metadata.put("version", "1.0.0.0");
+            metadata.put("timestamp", Instant.now().toString());
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
             BlobClient blobClient = containerClient.getBlobClient(blobName);
 
-            BlobParallelUploadOptions options = new BlobParallelUploadOptions(new File(filePath))
-                .setMetadata(metadata);
+            BlobHttpHeaders headers = new BlobHttpHeaders()
+                .setContentLanguage("en-US")
+                .setContentType("application/octet-stream");
 
-            blobClient.uploadWithResponse(options, null, null);
+            BlobRequestConditions requestConditions = new BlobRequestConditions()
+                .setIfUnmodifiedSince(OffsetDateTime.now().minusDays(3));
+
+            Long blockSize = 100L * 1024L * 1024L; // 100 MB
+            ParallelTransferOptions parallelTransferOptions = new ParallelTransferOptions().setBlockSizeLong(blockSize);
+
+            blobClient.uploadFromFile(filePath, parallelTransferOptions, headers, metadata,
+                    AccessTier.HOT, requestConditions, Duration.ofSeconds(60));
             System.out.println("Successfully placed " + blobName + " into container " + containerName);
 
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
+        } catch (UncheckedIOException ex) {
+            System.err.printf("Failed to upload from file %s%n", ex.getMessage());
             System.exit(1);
         }
     }
