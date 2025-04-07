@@ -2,86 +2,99 @@ package com.fixmia.rag.controllers;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import software.amazon.awssdk.core.waiters.WaiterResponse;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
-import software.amazon.awssdk.services.s3.model.S3Object;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
-import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
-import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
-import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-import software.amazon.awssdk.services.s3.model.CompletedPart;
-import software.amazon.awssdk.services.s3.model.CreateBucketConfiguration;
-import software.amazon.awssdk.services.s3.model.UploadPartRequest;
-import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
-import software.amazon.awssdk.services.s3.waiters.S3Waiter;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
-import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.*;
 
-
-import java.io.IOException;
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.BlobServiceClientBuilder;
+import com.azure.storage.blob.models.AccessTier;
+import com.azure.storage.blob.models.BlobHttpHeaders;
+import com.azure.storage.blob.models.BlobRequestConditions;
+import com.azure.storage.blob.models.ParallelTransferOptions;
 
 public class UploadObject2 {
 
     public static void main(String[] args) throws IOException {
-          uploadInputStream("ragbagTextFile3.txt");
+        uploadInputStream("ragbagTextFile3.txt");
     }
+
     public static void uploadInputStream(String fileObjectKeyName) throws IOException {
-        File initialFile = new File("src/main/webapp/service_provider_pfp_images/abc.txt");
-        InputStream targetStream = new FileInputStream(initialFile);
+        String filePath = "src/main/webapp/service_provider_pfp_images/abc.txt";
 
-        String bucketName = "testbucket3rag";
-        Region region = Region.EU_NORTH_1;
-        S3Client s3 = S3Client.builder()
-                .region(region)
-                .build();
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("x-amz-meta-myVal", "test");
-        PutObjectRequest objectRequest = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(fileObjectKeyName)
-                .metadata(metadata)
-                .build();
-        System.out.println("stream available is "+targetStream.available());
-//        System.out.println("stream size is "+getInputStreamLength(targetStream));
-        s3.putObject(objectRequest, RequestBody.fromInputStream(targetStream,targetStream.available()));
+        String containerName = "testcontainer";
+        String connectionString = "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=youraccountkey;EndpointSuffix=core.windows.net";
 
+        BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
+                .connectionString(connectionString)
+                .buildClient();
+        BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+        BlobClient blobClient = containerClient.getBlobClient(fileObjectKeyName);
+
+        BlobHttpHeaders headers = new BlobHttpHeaders()
+                .setContentMd5("data".getBytes(StandardCharsets.UTF_8))
+                .setContentLanguage("en-US")
+                .setContentType("binary");
+
+        Map<String, String> metadata = Collections.singletonMap("timestamp", Instant.now().toString());
+        BlobRequestConditions requestConditions = new BlobRequestConditions()
+                .setIfUnmodifiedSince(OffsetDateTime.now().minusDays(3));
+        Long blockSize = 100L * 1024L * 1024L; // 100 MB;
+        ParallelTransferOptions parallelTransferOptions = new ParallelTransferOptions().setBlockSizeLong(blockSize);
+
+        try {
+            blobClient.uploadFromFile(filePath, parallelTransferOptions, headers, metadata,
+                    AccessTier.HOT, requestConditions, Duration.ofSeconds(60));
+            System.out.println("Upload from file succeeded");
+        } catch (UncheckedIOException ex) {
+            System.err.printf("Failed to upload from file %s%n", ex.getMessage());
+        }
     }
-    public static void uploadImage(String fileObjectKeyName, InputStream stream) throws IOException {
-        String bucketName = "testbucket3rag";
-        Region region = Region.EU_NORTH_1;
-        S3Client s3 = S3Client.builder()
-                .region(region)
-                .build();
 
+    public static void uploadImage(String fileObjectKeyName, String filePath) throws IOException {
+        String containerName = "testcontainer";
+        String connectionString = "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=youraccountkey;EndpointSuffix=core.windows.net";
 
-        PutObjectRequest objectRequest = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(fileObjectKeyName)
-                .build();
-        s3.putObject(objectRequest, RequestBody.fromInputStream(stream,getInputStreamLength(stream)));
+        BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
+                .connectionString(connectionString)
+                .buildClient();
+        BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+        BlobClient blobClient = containerClient.getBlobClient(fileObjectKeyName);
+
+        BlobHttpHeaders headers = new BlobHttpHeaders()
+                .setContentMd5("data".getBytes(StandardCharsets.UTF_8))
+                .setContentLanguage("en-US")
+                .setContentType("binary");
+
+        Map<String, String> metadata = Collections.singletonMap("timestamp", Instant.now().toString());
+        BlobRequestConditions requestConditions = new BlobRequestConditions()
+                .setIfUnmodifiedSince(OffsetDateTime.now().minusDays(3));
+        Long blockSize = 100L * 1024L * 1024L; // 100 MB;
+        ParallelTransferOptions parallelTransferOptions = new ParallelTransferOptions().setBlockSizeLong(blockSize);
+
+        try {
+            blobClient.uploadFromFile(filePath, parallelTransferOptions, headers, metadata,
+                    AccessTier.HOT, requestConditions, Duration.ofSeconds(60));
+            System.out.println("Upload from file succeeded");
+        } catch (UncheckedIOException ex) {
+            System.err.printf("Failed to upload from file %s%n", ex.getMessage());
+        }
     }
+
     public static int getInputStreamLength(InputStream inputStream) throws IOException {
         byte[] buffer = new byte[1024];
         int chunkBytesRead = 0;
         int length = 0;
-        while((chunkBytesRead = inputStream.read(buffer)) != -1) {
+        while ((chunkBytesRead = inputStream.read(buffer)) != -1) {
             length += chunkBytesRead;
         }
         return length;
     }
+
     private static ByteBuffer getRandomByteBuffer(int size) throws IOException {
         byte[] b = new byte[size];
         new Random().nextBytes(b);

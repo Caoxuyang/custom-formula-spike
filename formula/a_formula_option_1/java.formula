@@ -1,0 +1,302 @@
+name: Change java files for A-formula-option-1
+description: >-
+  The changes migrate the code from using Amazon S3 SDK to Azure Blob Storage
+  SDK for puting and deleting objects/blobs in Java.
+codeLocation:
+  type: textsearch
+  filePattern: '**/*.java'
+  codePattern: >-
+    software\.amazon\.awssdk\.core\.sync\.RequestBody|software\.amazon\.awssdk\.regions\.Region|software\.amazon\.awssdk\.services\.s3\.S3Client|software\.amazon\.awssdk\.services\.s3\.model\.PutObjectRequest|software\.amazon\.awssdk\.services\.s3\.model\.ObjectIdentifier|software\.amazon\.awssdk\.services\.s3\.model\.Delete|software\.amazon\.awssdk\.services\.s3\.model\.DeleteObjectsRequest|software\.amazon\.awssdk\.services\.s3\.model\.S3Exception|public\s+static\s+void\s+deleteBucketObjects\(S3Client\s+.*,\s+String\s+.*\)
+steps:
+  - description: '47babc98: A-custom-use-connectionstring'
+    type: diff
+    content: >
+      diff --git a/original/A.java b/original/A.java
+
+      index 969ef0b..93c2cb3 100644
+
+      --- a/original/A.java
+
+      +++ b/original/A.java
+
+      @@ -33 +33,3 @@ public class DeleteMultiObjects {
+
+      -        String endpoint =
+      "https://yourstorageaccount.blob.core.windows.net";
+
+      +
+
+      +        // Replace with your actual connection string
+
+      +        String connectionString =
+      "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=youraccountkey;EndpointSuffix=core.windows.net";
+
+      @@ -36,2 +38 @@ public class DeleteMultiObjects {
+
+      -            .endpoint(endpoint)
+
+      -            .credential(new DefaultAzureCredentialBuilder().build())
+
+      +            .connectionString(connectionString)
+  - description: 'f376fbc8: A-msft'
+    type: diff
+    content: >
+      diff --git a/original/A.java b/original/A.java
+
+      index caca3c4..969ef0b 100644
+
+      --- a/original/A.java
+
+      +++ b/original/A.java
+
+      @@ -6,11 +6,7 @@ package com.example.s3;
+
+      -// snippet-start:[s3.java2.delete_many_objects.main]
+
+      -// snippet-start:[s3.java2.delete_many_objects.import]
+
+      -
+
+      -import software.amazon.awssdk.core.sync.RequestBody;
+
+      -import software.amazon.awssdk.regions.Region;
+
+      -import software.amazon.awssdk.services.s3.S3Client;
+
+      -import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+
+      -import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+
+      -import software.amazon.awssdk.services.s3.model.Delete;
+
+      -import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+
+      -import software.amazon.awssdk.services.s3.model.S3Exception;
+
+      +import com.azure.identity.DefaultAzureCredentialBuilder;
+
+      +import com.azure.storage.blob.BlobClient;
+
+      +import com.azure.storage.blob.BlobContainerClient;
+
+      +import com.azure.storage.blob.BlobServiceClient;
+
+      +import com.azure.storage.blob.BlobServiceClientBuilder;
+
+      +import com.azure.storage.blob.batch.BlobBatchClient;
+
+      +import com.azure.storage.blob.batch.BlobBatchClientBuilder;
+
+      @@ -19,10 +15 @@ import java.util.ArrayList;
+
+      -// snippet-end:[s3.java2.delete_many_objects.import]
+
+      -
+
+      -/**
+
+      - * Before running this Java V2 code example, set up your development
+
+      - * environment, including your credentials.
+
+      - * <p>
+
+      - * For more information, see the following documentation topic:
+
+      - * <p>
+
+      - *
+      https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/get-started.html
+
+      - */
+
+      +import java.util.List;
+
+      @@ -34 +21 @@ public class DeleteMultiObjects {
+
+      -            Usage:    <bucketName>
+
+      +            Usage:    <containerName>
+
+      @@ -37 +24 @@ public class DeleteMultiObjects {
+
+      -               bucketName - the Amazon S3 bucket name.
+
+      +               containerName - the Azure Blob Storage container name.
+
+      @@ -45,5 +32,7 @@ public class DeleteMultiObjects {
+
+      -        String bucketName = args[0];
+
+      -        Region region = Region.US_EAST_1;
+
+      -        S3Client s3 = S3Client.builder()
+
+      -            .region(region)
+
+      -            .build();
+
+      +        String containerName = args[0];
+
+      +        String endpoint =
+      "https://yourstorageaccount.blob.core.windows.net";
+
+      +
+
+      +        BlobServiceClient blobServiceClient = new
+      BlobServiceClientBuilder()
+
+      +            .endpoint(endpoint)
+
+      +            .credential(new DefaultAzureCredentialBuilder().build())
+
+      +            .buildClient();
+
+      @@ -51,2 +40 @@ public class DeleteMultiObjects {
+
+      -        deleteBucketObjects(s3, bucketName);
+
+      -        s3.close();
+
+      +        deleteContainerBlobs(blobServiceClient, containerName);
+
+      @@ -56 +44 @@ public class DeleteMultiObjects {
+
+      -     * Deletes multiple objects from an Amazon S3 bucket.
+
+      +     * Deletes multiple blobs from an Azure Blob Storage container.
+
+      @@ -58,2 +46,2 @@ public class DeleteMultiObjects {
+
+      -     * @param s3 An Amazon S3 client object.
+
+      -     * @param bucketName The name of the Amazon S3 bucket to delete
+      objects from.
+
+      +     * @param blobServiceClient An Azure Blob Service client object.
+
+      +     * @param containerName The name of the Azure Blob Storage container
+      to delete blobs from.
+
+      @@ -61,5 +49,6 @@ public class DeleteMultiObjects {
+
+      -    public static void deleteBucketObjects(S3Client s3, String
+      bucketName) {
+
+      -        // Upload three sample objects to the specfied Amazon S3 bucket.
+
+      -        ArrayList<ObjectIdentifier> keys = new ArrayList<>();
+
+      -        PutObjectRequest putOb;
+
+      -        ObjectIdentifier objectId;
+
+      +    public static void deleteContainerBlobs(BlobServiceClient
+      blobServiceClient, String containerName) {
+
+      +        BlobContainerClient containerClient =
+      blobServiceClient.getBlobContainerClient(containerName);
+
+      +        BlobBatchClient blobBatchClient = new
+      BlobBatchClientBuilder(blobServiceClient).buildClient();
+
+      +
+
+      +        // Upload three sample blobs to the specified Azure Blob Storage
+      container.
+
+      +        List<String> blobUrls = new ArrayList<>();
+
+      @@ -68,12 +57,4 @@ public class DeleteMultiObjects {
+
+      -            String keyName = "delete object example " + i;
+
+      -            objectId = ObjectIdentifier.builder()
+
+      -                .key(keyName)
+
+      -                .build();
+
+      -
+
+      -            putOb = PutObjectRequest.builder()
+
+      -                .bucket(bucketName)
+
+      -                .key(keyName)
+
+      -                .build();
+
+      -
+
+      -            s3.putObject(putOb, RequestBody.fromString(keyName));
+
+      -            keys.add(objectId);
+
+      +            String blobName = "delete_blob_example_" + i;
+
+      +            BlobClient blobClient =
+      containerClient.getBlobClient(blobName);
+
+      +            blobClient.uploadFromFile("sample-file-path-" + i); //
+      Replace with actual file paths
+
+      +            blobUrls.add(blobClient.getBlobUrl());
+
+      @@ -82,6 +63 @@ public class DeleteMultiObjects {
+
+      -        System.out.println(keys.size() + " objects successfully
+      created.");
+
+      -
+
+      -        // Delete multiple objects in one request.
+
+      -        Delete del = Delete.builder()
+
+      -            .objects(keys)
+
+      -            .build();
+
+      +        System.out.println(blobUrls.size() + " blobs successfully
+      created.");
+
+      @@ -88,0 +65 @@ public class DeleteMultiObjects {
+
+      +        // Delete multiple blobs in one request.
+
+      @@ -90,7 +67,2 @@ public class DeleteMultiObjects {
+
+      -            DeleteObjectsRequest multiObjectDeleteRequest =
+      DeleteObjectsRequest.builder()
+
+      -                .bucket(bucketName)
+
+      -                .delete(del)
+
+      -                .build();
+
+      -
+
+      -            s3.deleteObjects(multiObjectDeleteRequest);
+
+      -            System.out.println("Multiple objects are deleted!");
+
+      +            blobBatchClient.deleteBlobs(blobUrls, null);
+
+      +            System.out.println("Multiple blobs are deleted!");
+
+      @@ -98,2 +70,2 @@ public class DeleteMultiObjects {
+
+      -        } catch (S3Exception e) {
+
+      -            System.err.println(e.awsErrorDetails().errorMessage());
+
+      +        } catch (Exception e) {
+
+      +            System.err.println("Error occurred while deleting blobs: " +
+      e.getMessage());
+
+      @@ -104 +75,0 @@ public class DeleteMultiObjects {
+
+      -// snippet-end:[s3.java2.delete_many_objects.main]
