@@ -1,0 +1,364 @@
+name: 'Migrate S3client putObject to azure blob storage upload'
+description: ""
+codeLocation:
+  type: textsearch
+  filePattern: '**/*.java'
+  codePattern: >-
+    PutObjectRequest|PutObject​
+steps:
+  - description: "Migrate s3client with putObject api to azure blob storage download"
+    type: "instruction"
+    content: |
+      Your task is to migrate a Java file from using the Amazon S3 API to the Azure Storage Blob API while maintaining the same functionality. Below is a reference to the relevant Azure Storage Blob APIs for your convenience. You can tell whether it's an aws or azure api from the package name.
+      Try replace all references to S3 APIs with equivalent Azure Storage Blob APIs, using the provided API descriptions as guidance.
+      Ensure the resulting code is clean, efficient, and preserves the original functionality.
+      Some of the methods are of the same name under different class, please pay attention to the type before using.
+      Pay attention to the contentType contentLength related parameters, only if they exist, you can use BlobHttpHeaders and BlobParallelUploadOptions to achieve similar functionality. 
+      Mind that 
+      1. the package of BlobParallelUploadOptions is listed below: com.azure.storage.blob.options. 
+      2. When instantiating `BlobParallelUploadOptions`, you must use ONLY one of these two constructor forms, either one BinaryData or One InputStream. Also you should import BinaryData or InputStream base on your choice:
+         - `new BlobParallelUploadOptions(binaryDataVariable)` OR
+         - `new BlobParallelUploadOptions(inputStreamVariable)`
+         Any additional parameters must be set using setter methods after the object is created (such as `setHeaders()`).
+         It doesn't take a `File` type as input!
+      Below are custom code change diff for you to reference:
+      ```
+      --- a/original/B.java
+      +++ b/original/B.java
+      @@ -5,105 +5,80 @@ import com.azure.storage.blob.BlobClient;
+      import com.azure.storage.blob.BlobContainerClient;
+      import com.azure.storage.blob.BlobServiceClient;
+      import com.azure.storage.blob.BlobServiceClientBuilder;
+      -import com.azure.storage.blob.models.AccessTier;
+      import com.azure.storage.blob.models.BlobHttpHeaders;
+      -import com.azure.storage.blob.models.BlobRequestConditions;
+      -import com.azure.storage.blob.models.ParallelTransferOptions;
+      +import com.azure.storage.blob.options.BlobParallelUploadOptions;
+
+      import java.io.*;
+      import java.nio.ByteBuffer;
+      -import java.nio.charset.StandardCharsets;
+      -import java.time.Duration;
+      -import java.time.Instant;
+      -import java.time.OffsetDateTime;
+      -import java.util.Collections;
+      +import java.util.HashMap;
+      import java.util.Map;
+      import java.util.Random;
+
+      public class UploadObject2 {
+
+      -  public static void main(String[] args) throws IOException {
+      -    uploadInputStream("ragbagTextFile3.txt");
+      -  }
+      -
+      -  public static void uploadInputStream(String fileObjectKeyName) throws IOException {
+      -    String filePath = "src/main/webapp/service_provider_pfp_images/abc.txt";
+      -
+      -    String containerName = "testbucket3rag";
+      -    String endpoint = "https://yourstorageaccount.blob.core.windows.net";
+      -
+      -    BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
+      -            .endpoint(endpoint)
+      -            .credential(new DefaultAzureCredentialBuilder().build())
+      -            .buildClient();
+      -
+      -    BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+      -    BlobClient blobClient = containerClient.getBlobClient(fileObjectKeyName);
+      -
+      -    BlobHttpHeaders headers = new BlobHttpHeaders()
+      -            .setContentMd5("data".getBytes(StandardCharsets.UTF_8))
+      -            .setContentLanguage("en-US")
+      -            .setContentType("binary");
+      -
+      -    Map<String, String> metadata = Collections.singletonMap("timestamp", Instant.now().toString());
+      -    BlobRequestConditions requestConditions = new BlobRequestConditions()
+      -            .setIfUnmodifiedSince(OffsetDateTime.now().minusDays(3));
+      -    Long blockSize = 100L * 1024L * 1024L; // 100 MB;
+      -    ParallelTransferOptions parallelTransferOptions = new ParallelTransferOptions().setBlockSizeLong(blockSize);
+      -
+      -    try {
+      -      blobClient.uploadFromFile(filePath, parallelTransferOptions, headers, metadata,
+      -              AccessTier.HOT, requestConditions, Duration.ofSeconds(60));
+      -      System.out.println("Upload from file succeeded");
+      -    } catch (UncheckedIOException ex) {
+      -      System.err.printf("Failed to upload from file %s%n", ex.getMessage());
+      +    public static void main(String[] args) throws IOException {
+      +        uploadInputStream("ragbagTextFile3.txt");
+          }
+      -  }
+      -
+      -  public static void uploadImage(String fileObjectKeyName, String filePath) throws IOException {
+      -    String containerName = "testbucket3rag";
+      -    String endpoint = "https://yourstorageaccount.blob.core.windows.net";
+      -
+      -    BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
+      -            .endpoint(endpoint)
+      -            .credential(new DefaultAzureCredentialBuilder().build())
+      -            .buildClient();
+      -
+      -    BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+      -    BlobClient blobClient = containerClient.getBlobClient(fileObjectKeyName);
+      -
+      -    BlobHttpHeaders headers = new BlobHttpHeaders()
+      -            .setContentMd5("data".getBytes(StandardCharsets.UTF_8))
+      -            .setContentLanguage("en-US")
+      -            .setContentType("binary");
+      -
+      -    Map<String, String> metadata = Collections.singletonMap("timestamp", Instant.now().toString());
+      -    BlobRequestConditions requestConditions = new BlobRequestConditions()
+      -            .setIfUnmodifiedSince(OffsetDateTime.now().minusDays(3));
+      -    Long blockSize = 100L * 1024L * 1024L; // 100 MB;
+      -    ParallelTransferOptions parallelTransferOptions = new ParallelTransferOptions().setBlockSizeLong(blockSize);
+      -
+      -    try {
+      -      blobClient.uploadFromFile(filePath, parallelTransferOptions, headers, metadata,
+      -              AccessTier.HOT, requestConditions, Duration.ofSeconds(60));
+      -      System.out.println("Upload from file succeeded");
+      -    } catch (UncheckedIOException ex) {
+      -      System.err.printf("Failed to upload from file %s%n", ex.getMessage());
+      +
+      +    public static void uploadInputStream(String fileObjectKeyName) throws IOException {
+      +        File initialFile = new File("src/main/webapp/service_provider_pfp_images/abc.txt");
+      +        InputStream targetStream = new FileInputStream(initialFile);
+      +
+      +        String containerName = "testbucket3rag";
+      +        String endpoint = "https://yourstorageaccount.blob.core.windows.net";
+      +
+      +        BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
+      +                .endpoint(endpoint)
+      +                .credential(new DefaultAzureCredentialBuilder().build())
+      +                .buildClient();
+      +
+      +        BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+      +        BlobClient blobClient = containerClient.getBlobClient(fileObjectKeyName);
+      +
+      +        Map<String, String> metadata = new HashMap<>();
+      +        metadata.put("x-ms-meta-myVal", "test");
+      +
+      +        BlobHttpHeaders headers = new BlobHttpHeaders().setContentType("text/plain");
+      +
+      +        BlobParallelUploadOptions options = new BlobParallelUploadOptions(targetStream)
+      +                .setHeaders(headers)
+      +                .setMetadata(metadata);
+      +
+      +        blobClient.uploadWithResponse(options, null, null);
+      +    }
+      +
+      +    public static void uploadImage(String fileObjectKeyName, InputStream stream) throws IOException {
+      +        String containerName = "testbucket3rag";
+      +        String endpoint = "https://yourstorageaccount.blob.core.windows.net";
+      +
+      +        BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
+      +                .endpoint(endpoint)
+      +                .credential(new DefaultAzureCredentialBuilder().build())
+      +                .buildClient();
+      +
+      +        BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+      +        BlobClient blobClient = containerClient.getBlobClient(fileObjectKeyName);
+      +
+      +        BlobHttpHeaders headers = new BlobHttpHeaders().setContentType("image/jpeg");
+      +
+      +        BlobParallelUploadOptions options = new BlobParallelUploadOptions(stream)
+      +                .setHeaders(headers);
+      +
+      +        blobClient.uploadWithResponse(options, null, null);
+      +    }
+      +
+      +    public static int getInputStreamLength(InputStream inputStream) throws IOException {
+      +        byte[] buffer = new byte[1024];
+      +        int chunkBytesRead = 0;
+      +        int length = 0;
+      +        while ((chunkBytesRead = inputStream.read(buffer)) != -1) {
+      +            length += chunkBytesRead;
+      +        }
+      +        return length;
+          }
+      -  }
+      -
+      -  public static int getInputStreamLength(InputStream inputStream) throws IOException {
+      -    byte[] buffer = new byte[1024];
+      -    int chunkBytesRead = 0;
+      -    int length = 0;
+      -    while ((chunkBytesRead = inputStream.read(buffer)) != -1) {
+      -      length += chunkBytesRead;
+      +
+      +    private static ByteBuffer getRandomByteBuffer(int size) throws IOException {
+      +        byte[] b = new byte[size];
+      +        new Random().nextBytes(b);
+      +        return ByteBuffer.wrap(b);
+          }
+      -    return length;
+      -  }
+      -
+      -  private static ByteBuffer getRandomByteBuffer(int size) throws IOException {
+      -    byte[] b = new byte[size];
+      -    new Random().nextBytes(b);
+      -    return ByteBuffer.wrap(b);
+      -  }
+      ```
+      
+      Below are the APIs provided for your reference, don't forget to import the package whenever you are adding a new class reference in code edit:
+
+      Class: PutObjectRequest
+        Package:software.amazon.awssdk.services.s3.model
+        Methods:
+          - public static PutObjectRequest.Builder builder()
+
+      Interface: PutObjectRequest.Builder
+        Methods:
+          - PutObjectRequest.Builder bucket(String bucket)
+            Descrption: The bucket name to which the PUT action was initiated.
+            Parameters:
+            - bucket: The bucket name to which the PUT action was initiated.
+            Returns: Returns a reference to this object so that method calls can be chained together.
+          - PutObjectRequest.Builder key(String key)
+            Descrption: Object key for which the PUT action was initiated.
+            Parameters:
+            - key: Object key for which the PUT action was initiated.
+            Returns: Returns a reference to this object so that method calls can be chained together.
+          - PutObjectRequest.Builder contentType​(String contentType)
+            Description: A standard MIME type describing the format of the contents.
+            Parameters: 
+              - contentType - A standard MIME type describing the format of the contents.
+            Returns: Returns a reference to this object so that method calls can be chained together.
+          - PutObjectRequest.Builder contentLength​(Long contentLength)
+            Description: Size of the body in bytes. This parameter is useful when the size of the body cannot be determined automatically.
+            Parameters:
+              - contentLength - Size of the body in bytes.
+            Returns: Returns a reference to this object so that method calls can be chained together.
+          - PutObjectRequest.Builder metadata​(Map<String,​String> metadata)
+            Description: A map of metadata to store with the object in S3.
+            Parameters:
+              - metadata - A map of metadata to store with the object in S3.
+            Returns: Returns a reference to this object so that method calls can be chained together.
+
+      Class BlobServiceClient
+        Package: com.azure.storage.blob
+        Methods:
+          - public BlobContainerClient getBlobContainerClient(String containerName)
+            Description: Initializes a BlobContainerClient object pointing to the specified container. This method does not create a container. It simply constructs the URL to the container and offers access to methods relevant to containers.
+            Parameters:
+            - containerName: The name of the container to point to.
+            Returns: A BlobContainerClient object pointing to the specified container.
+
+      Class BlobContainerClient 
+        Package: com.azure.storage.blob
+        Methods:
+        - public BlobClient getBlobClient(String blobName)
+          Description: Initializes a new BlobClient object by concatenating blobName to the end of ContainerAsyncClient's URL. The new BlobClient uses the same request policy pipeline as the ContainerAsyncClient.
+        Parameters:
+        - blobName: A String representing the name of the blob. If the blob name contains special characters, pass in the url encoded version of the blob name.
+        Returns: A new BlobClient object which references the blob with the specified name in this container.
+
+      Class: BlobClient
+        Package: com.azure.storage.blob
+        Note: `The package of `BlobClient` is com.azure.storage.blob and the package of `BlobClientBase` is com.azure.storage.blob.specialized, don't make mistake here.
+        Methods:
+          - public void upload(BinaryData data)
+            Description: Creates a new blob. By default this method will not overwrite an existing blob.
+            Parameters:
+              - data: The data to write to the blob.
+          - public void upload(BinaryData data, boolean overwrite)
+            Description: Creates a new blob, or updates the content of an existing blob.
+            Parameters:
+              - data: The data to write to the blob.
+              - overwrite: Whether or not to overwrite, should data exist on the blob.
+          - public void upload(InputStream data)
+            Description: Creates a new blob. By default this method will not overwrite an existing blob.
+            Parameters:
+              - data: The data to write to the blob. The data must be markable. This is in order to support retries. If the data is not markable, consider opening a BlobOutputStream and writing to the returned stream. Alternatively, consider wrapping your data source in a BufferedInputStream to add mark support.
+          - public void upload(InputStream data, boolean overwrite)
+            Description: Creates a new blob, or updates the content of an existing blob.
+            Parameters:
+              - data: The data to write to the blob. The data must be markable. This is in order to support retries. If the data is not markable, consider opening a BlobOutputStream and writing to the returned stream. Alternatively, consider wrapping your data source in a BufferedInputStream to add mark support.
+              - overwrite: Whether or not to overwrite, should data exist on the blob.
+          - public void upload(InputStream data, long length)
+            Description: Creates a new blob. By default this method will not overwrite an existing blob.
+            Parameters:
+              - data: The data to write to the blob. The data must be markable. This is in order to support retries. If the data is not markable, consider opening a BlobOutputStream and writing to the returned stream. Alternatively, consider wrapping your data source in a BufferedInputStream to add mark support.
+              - length: The exact length of the data. It is important that this value match precisely the length of the data provided in the InputStream.
+          - public void upload(InputStream data, long length, boolean overwrite)
+            Description: Creates a new blob, or updates the content of an existing blob.
+            Parameters:
+              - data: The data to write to the blob. The data must be markable. This is in order to support retries. If the data is not markable, consider opening a BlobOutputStream and writing to the returned stream. Alternatively, consider wrapping your data source in a BufferedInputStream to add mark support.
+              - length: The exact length of the data. It is important that this value match precisely the length of the data provided in the InputStream.
+              - overwrite: Whether or not to overwrite, should data exist on the blob.
+          - public void uploadFromFile(String filePath)
+            Description: Creates a new block blob. By default this method will not overwrite an existing blob.
+            Parameters:
+              - filePath - Path of the file to upload
+          - public void uploadFromFile(String filePath, boolean overwrite)
+            Description: Creates a new block blob, or updates the content of an existing block blob.
+            Parameters:
+              - filePath - Path of the file to upload
+              - overwrite - Whether or not to overwrite, should the blob already exist
+          - public Response uploadWithResponse(BlobParallelUploadOptions options, Duration timeout, Context context)
+            Description: Creates a new blob, or updates the content of an existing blob.
+            Parameters:
+              - options - BlobParallelUploadOptions
+              - timeout - An optional timeout value beyond which a RuntimeException will be raised.
+              - context - Additional context that is passed through the Http pipeline during the service call.
+            Returns: Information about the uploaded block blob.
+          - public Response uploadFromFileWithResponse(BlobUploadFromFileOptions options, Duration timeout, Context context)
+            Description: Creates a new block blob, or updates the content of an existing block blob.
+            Parameters:
+              - options - BlobUploadFromFileOptions
+              - timeout - An optional timeout value beyond which a RuntimeException will be raised.
+              - context - Additional context that is passed through the Http pipeline during the service call.
+            Returns: Information about the uploaded block blob.
+
+      Class: BlobParallelUploadOptions
+        Description: Extended options that may be passed when uploading a Block Blob in parallel.
+        Note: Please only use BinaryData or InputStream in the constructor, it doesn't take other types like `File`
+        Package: com.azure.storage.blob.options
+        Constructors:
+        - public BlobParallelUploadOptions(BinaryData data)
+          Description: Constructs a new BlobParallelUploadOptions.
+          Parameter:
+            - data - The data to write to the blob.
+        - public BlobParallelUploadOptions(InputStream dataStream)
+          Description: Constructs a new BlobParallelUploadOptions. Note: the InputStream must be closed by the caller.
+          Parameter:
+            - dataStream - The data to write to the blob.
+        Methods:
+        - public BlobParallelUploadOptions setHeaders(BlobHttpHeaders headers)
+          Description: Sets the BlobHttpHeaders.
+          Parameters:
+            - headers - BlobHttpHeaders
+          Returns: The updated options
+        - public BlobParallelUploadOptions setMetadata(Map metadata)
+          Description: Sets the metadata
+          Parameters:
+            - metadata - The metadata to associate with the blob.
+          Returns: The updated options.
+        
+      Class: BlobUploadFromFileOptions 
+        Description: Extended options that may be passed when uploading a blob from a file.
+        Package: com.azure.storage.blob.options
+        Constructors:
+        - public BlobUploadFromFileOptions(String filePath)
+          Description: Constructs a BlobUploadFromFileOptions.
+          Parameter:
+            filePath - Path of the file to upload.
+        Methods:
+        - public BlobUploadFromFileOptions setHeaders(BlobHttpHeaders headers)
+          Description: Sets the BlobHttpHeaders.
+          Parameters:
+            - headers - BlobHttpHeaders
+          Returns: The updated options
+        - public BlobUploadFromFileOptions setMetadata(Map metadata)
+          Description: Sets the metadata
+          Parameters:
+            - metadata - The metadata to associate with the blob.
+          Returns: The updated options.
+
+      Class: BlobHttpHeaders
+        Description: Parameter group
+        Package: com.azure.storage.blob.models
+        Methods:
+        - public BlobHttpHeaders setContentType(String contentType)
+          Description: Set the contentType property: Optional. Sets the blob's content type. If specified, this property is stored with the blob and returned with a read request.
+          Parameter:
+            - contentType - the contentType value to set.
+          Returns: the BlobHttpHeaders object itself.
