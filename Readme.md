@@ -1,4 +1,4 @@
-This is a spike repo to spike the best option for a customer to leveage custom formula to achieve 1 ~ N.
+This is a spike repo to spike the best option for a customer to leverage custom formula to achieve 1 ~ N.
 This repo will test three different potential options to integrate MSFT formula & custom formula with a specifically designed test scenario.
 
 ## Spike Plan
