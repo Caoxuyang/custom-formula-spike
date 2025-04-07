@@ -1,0 +1,207 @@
+name: Change java files for Custom-A-plus-B-formula-option3
+description: >-
+  Updated Azure Blob Storage upload logic to include timestamp metadata,
+  headers, and improved error handling, and replaced endpoint/credential setup
+  with a connection string for streamlined configuration.
+codeLocation:
+  type: textsearch
+  filePattern: '**/*.java'
+  codePattern: >-
+    com\.azure\.storage\.blob\.options\.BlobParallelUploadOptions|com\.azure\.identity\.DefaultAzureCredentialBuilder|public\s+static\s+void\s+uploadImage\(String\s+.*,\s+InputStream\s+.*\)|BlobHttpHeaders|BlobParallelUploadOptions|blobClient\.uploadWithResponse|\.endpoint|\.credential
+steps:
+  - description: 'd9566b4c: B-custom-change-upload-attach-metadata'
+    type: diff
+    content: >
+      diff --git a/original/B.java b/original/B.java
+
+      index 964c237..d224679 100644
+
+      --- a/original/B.java
+
+      +++ b/original/B.java
+
+      @@ -4,0 +5,5 @@ import java.nio.ByteBuffer;
+
+      +import java.nio.charset.StandardCharsets;
+
+      +import java.time.Duration;
+
+      +import java.time.Instant;
+
+      +import java.time.OffsetDateTime;
+
+      +import java.util.Collections;
+
+      @@ -11,0 +17 @@ import com.azure.storage.blob.BlobServiceClientBuilder;
+
+      +import com.azure.storage.blob.models.AccessTier;
+
+      @@ -13,2 +19,2 @@ import com.azure.storage.blob.models.BlobHttpHeaders;
+
+      -import com.azure.storage.blob.options.BlobParallelUploadOptions;
+
+      -import com.azure.identity.DefaultAzureCredentialBuilder;
+
+      +import com.azure.storage.blob.models.BlobRequestConditions;
+
+      +import com.azure.storage.blob.models.ParallelTransferOptions;
+
+      @@ -23,2 +29 @@ public class UploadObject2 {
+
+      -        File initialFile = new
+      File("src/main/webapp/service_provider_pfp_images/abc.txt");
+
+      -        InputStream targetStream = new FileInputStream(initialFile);
+
+      +    String filePath =
+      "src/main/webapp/service_provider_pfp_images/abc.txt";
+
+      @@ -34,0 +40,5 @@ public class UploadObject2 {
+
+      +    BlobHttpHeaders headers = new BlobHttpHeaders()
+
+      +            .setContentMd5("data".getBytes(StandardCharsets.UTF_8))
+
+      +            .setContentLanguage("en-US")
+
+      +            .setContentType("text/plain");
+
+      +
+
+      @@ -36,0 +47 @@ public class UploadObject2 {
+
+      +    metadata.put("timestamp", Instant.now().toString());
+
+      @@ -38,4 +49,4 @@ public class UploadObject2 {
+
+      -        BlobHttpHeaders headers = new
+      BlobHttpHeaders().setContentType("text/plain");
+
+      -        BlobParallelUploadOptions options = new
+      BlobParallelUploadOptions(targetStream)
+
+      -                .setHeaders(headers)
+
+      -                .setMetadata(metadata);
+
+      +    BlobRequestConditions requestConditions = new BlobRequestConditions()
+
+      +            .setIfUnmodifiedSince(OffsetDateTime.now().minusDays(3));
+
+      +    Long blockSize = 100L * 1024L * 1024L; // 100 MB;
+
+      +    ParallelTransferOptions parallelTransferOptions = new
+      ParallelTransferOptions().setBlockSizeLong(blockSize);
+
+      @@ -43,2 +54,7 @@ public class UploadObject2 {
+
+      -        System.out.println("stream available is " +
+      targetStream.available());
+
+      -        blobClient.uploadWithResponse(options, null, null);
+
+      +    try {
+
+      +      blobClient.uploadFromFile(filePath, parallelTransferOptions,
+      headers, metadata,
+
+      +              AccessTier.HOT, requestConditions, Duration.ofSeconds(60));
+
+      +      System.out.println("Upload from file succeeded");
+
+      +    } catch (UncheckedIOException ex) {
+
+      +      System.err.printf("Failed to upload from file %s%n",
+      ex.getMessage());
+
+      +    }
+
+      @@ -47 +63 @@ public class UploadObject2 {
+
+      -    public static void uploadImage(String fileObjectKeyName, InputStream
+      stream) throws IOException {
+
+      +  public static void uploadImage(String fileObjectKeyName, String
+      filePath) throws IOException {
+
+      @@ -57,3 +73,4 @@ public class UploadObject2 {
+
+      -        BlobHttpHeaders headers = new
+      BlobHttpHeaders().setContentType("image/jpeg");
+
+      -        BlobParallelUploadOptions options = new
+      BlobParallelUploadOptions(stream)
+
+      -                .setHeaders(headers);
+
+      +    BlobHttpHeaders headers = new BlobHttpHeaders()
+
+      +            .setContentMd5("data".getBytes(StandardCharsets.UTF_8))
+
+      +            .setContentLanguage("en-US")
+
+      +            .setContentType("image/jpeg");
+
+      @@ -61 +78,13 @@ public class UploadObject2 {
+
+      -        blobClient.uploadWithResponse(options, null, null);
+
+      +    Map<String, String> metadata = Collections.singletonMap("timestamp",
+      Instant.now().toString());
+
+      +    BlobRequestConditions requestConditions = new BlobRequestConditions()
+
+      +            .setIfUnmodifiedSince(OffsetDateTime.now().minusDays(3));
+
+      +    Long blockSize = 100L * 1024L * 1024L; // 100 MB;
+
+      +    ParallelTransferOptions parallelTransferOptions = new
+      ParallelTransferOptions().setBlockSizeLong(blockSize);
+
+      +
+
+      +    try {
+
+      +      blobClient.uploadFromFile(filePath, parallelTransferOptions,
+      headers, metadata,
+
+      +              AccessTier.HOT, requestConditions, Duration.ofSeconds(60));
+
+      +      System.out.println("Upload from file succeeded");
+
+      +    } catch (UncheckedIOException ex) {
+
+      +      System.err.printf("Failed to upload from file %s%n",
+      ex.getMessage());
+
+      +    }
+  - description: '47babc98: A-custom-use-connectionstring'
+    type: diff
+    content: >
+      diff --git a/original/A.java b/original/A.java
+
+      index 969ef0b..93c2cb3 100644
+
+      --- a/original/A.java
+
+      +++ b/original/A.java
+
+      @@ -33 +33,3 @@ public class DeleteMultiObjects {
+
+      -        String endpoint =
+      "https://yourstorageaccount.blob.core.windows.net";
+
+      +
+
+      +        // Replace with your actual connection string
+
+      +        String connectionString =
+      "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=youraccountkey;EndpointSuffix=core.windows.net";
+
+      @@ -36,2 +38 @@ public class DeleteMultiObjects {
+
+      -            .endpoint(endpoint)
+
+      -            .credential(new DefaultAzureCredentialBuilder().build())
+
+      +            .connectionString(connectionString)

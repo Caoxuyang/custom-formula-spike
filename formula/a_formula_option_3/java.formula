@@ -1,0 +1,39 @@
+name: Change java files for A-formula-option-3
+description: >-
+  Updated the Azure Blob Storage connection setup to use a connection string
+  instead of an endpoint and default credentials and credentials.
+codeLocation:
+  type: textsearch
+  codePattern: endpoint|credential\(new\s+DefaultAzureCredentialBuilder\(\)\.build\(\)\)
+  filePattern: '**/*.java'
+steps:
+  - description: '47babc98: A-custom-use-connectionstring'
+    type: diff
+    content: >
+      diff --git a/original/A.java b/original/A.java
+
+      index 969ef0b..93c2cb3 100644
+
+      --- a/original/A.java
+
+      +++ b/original/A.java
+
+      @@ -33 +33,3 @@ public class DeleteMultiObjects {
+
+      -        String endpoint =
+      "https://yourstorageaccount.blob.core.windows.net";
+
+      +
+
+      +        // Replace with your actual connection string
+
+      +        String connectionString =
+      "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=youraccountkey;EndpointSuffix=core.windows.net";
+
+      @@ -36,2 +38 @@ public class DeleteMultiObjects {
+
+      -            .endpoint(endpoint)
+
+      -            .credential(new DefaultAzureCredentialBuilder().build())
+
+      +            .connectionString(connectionString)
