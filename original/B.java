@@ -24,10 +24,10 @@ public class UploadObject2 {
         InputStream targetStream = new FileInputStream(initialFile);
 
         String containerName = "testbucket3rag";
-        String endpoint = "https://yourstorageaccount.blob.core.windows.net";
+        // Replace with your actual connection string
+        String connectionString = "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=youraccountkey;EndpointSuffix=core.windows.net";
         BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                .endpoint(endpoint)
-                .credential(new DefaultAzureCredentialBuilder().build())
+                .connectionString(connectionString)
                 .buildClient();
         BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
         BlobClient blobClient = containerClient.getBlobClient(fileObjectKeyName);
@@ -46,10 +46,10 @@ public class UploadObject2 {
 
     public static void uploadImage(String fileObjectKeyName, InputStream stream) throws IOException {
         String containerName = "testbucket3rag";
-        String endpoint = "https://yourstorageaccount.blob.core.windows.net";
+        // Replace with your actual connection string
+        String connectionString = "DefaultEndpointsProtocol=https;AccountName=yourstorageaccount;AccountKey=youraccountkey;EndpointSuffix=core.windows.net";
         BlobServiceClient blobServiceClient = new BlobServiceClientBuilder()
-                .endpoint(endpoint)
-                .credential(new DefaultAzureCredentialBuilder().build())
+                .connectionString(connectionString)
                 .buildClient();
         BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
         BlobClient blobClient = containerClient.getBlobClient(fileObjectKeyName);
